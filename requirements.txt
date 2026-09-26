@@ -1,0 +1,17 @@
+# Data manipulation & serialization
+pandas>=2.0.0
+pyarrow>=14.0.0
+numpy>=1.24.0
+
+# Database connectivity & ORM
+SQLAlchemy>=2.0.0
+psycopg2-binary>=2.9.9
+
+# Environment & utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+rich>=13.0.0
+
+# Testing & quality
+pytest>=7.4.0
+ruff>=0.1.0
