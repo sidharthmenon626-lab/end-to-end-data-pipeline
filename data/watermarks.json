@@ -1,0 +1,27 @@
+{
+  "orders": {
+    "last_watermark": "2026-03-24T23:59:57.978403+00:00",
+    "updated_at": "2026-09-26T07:28:14.895290+00:00",
+    "records_extracted": 1
+  },
+  "customers": {
+    "last_watermark": "2026-03-24T23:55:30.417058+00:00",
+    "updated_at": "2026-09-26T07:28:14.334689+00:00",
+    "records_extracted": 1
+  },
+  "subscriptions": {
+    "last_watermark": "2026-03-24T23:59:56.434295+00:00",
+    "updated_at": "2026-09-26T07:28:15.373335+00:00",
+    "records_extracted": 1
+  },
+  "events": {
+    "last_watermark": "2026-03-24T23:59:56.733105+00:00",
+    "updated_at": "2026-09-26T07:28:15.775054+00:00",
+    "records_extracted": 1
+  },
+  "pytest_source": {
+    "last_watermark": "2026-03-25T12:00:00+00:00",
+    "updated_at": "2026-09-26T07:28:12.795157+00:00",
+    "records_extracted": 150
+  }
+}

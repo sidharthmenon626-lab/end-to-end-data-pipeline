@@ -39,3 +39,6 @@ Thumbs.db
 # IDE configuration
 .vscode/
 .idea/
+
+# Local standalone database cluster
+warehouse_db/

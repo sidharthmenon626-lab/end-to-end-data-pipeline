@@ -79,7 +79,7 @@ def test_cdc_proof():
         assert res["plan_tier"] == "ENTERPRISE"
         assert res["_source_op"] == "U"
         assert res["_is_deleted"] is False
-    print("  [✓] Verified: UPDATE correctly updated the existing record without duplicate insertion.")
+    print("  [OK] Verified: UPDATE correctly updated the existing record without duplicate insertion.")
 
     # -------------------------------------------------------------------------
     # STEP 3: Mutate Customer (DELETE / Soft-Delete Tombstone)
@@ -111,7 +111,7 @@ def test_cdc_proof():
         assert res["account_status"] == "CHURNED"
         assert res["_source_op"] == "D"
         assert res["_is_deleted"] is True
-    print("  [✓] Verified: DELETE tombstone captured in warehouse with _is_deleted = TRUE.")
+    print("  [OK] Verified: DELETE tombstone captured in warehouse with _is_deleted = TRUE.")
 
     print("\n" + "=" * 70)
     print("  [PROOF COMPLETED] Real-world CDC operations verified successfully.")

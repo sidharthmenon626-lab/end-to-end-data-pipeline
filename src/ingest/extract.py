@@ -1,116 +1,89 @@
 """
 Source Extraction Module.
-Reads delta batches from source representations (Parquet landing / simulated sources)
+Reads delta batches from source Parquet landing zone (data/raw/)
 filtering strictly by watermark boundary.
 """
 
-import uuid
+import os
 from datetime import datetime, timezone
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Iterator
+import pyarrow as pa
+import pyarrow.dataset as ds
+import pyarrow.compute as pc
 import pandas as pd
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RAW_BASE_DIR = os.path.join(PROJECT_ROOT, "data", "raw")
 
-def extract_customer_batch(watermark: datetime, batch_size: int = 500) -> List[Dict[str, Any]]:
+
+def get_landing_file(source_name: str) -> str:
+    """
+    Resolves the canonical parquet landing path for a given source.
+    """
+    return os.path.join(RAW_BASE_DIR, source_name, f"{source_name}.parquet")
+
+
+def extract_batches(source_name: str, watermark: datetime, batch_size: int = 25000) -> Iterator[List[Dict[str, Any]]]:
+    """
+    Streams incremental delta record batches from parquet landing zone.
+    Applies strict watermark threshold comparison: timestamp > watermark.
+    """
+    file_path = get_landing_file(source_name)
+    if not os.path.exists(file_path):
+        return
+
+    ts_col = "event_timestamp" if source_name in ["subscriptions", "events"] else "source_updated_at"
+
+    if watermark.tzinfo is not None:
+        watermark_utc = watermark.astimezone(timezone.utc)
+    else:
+        watermark_utc = watermark.replace(tzinfo=timezone.utc)
+
+    dataset = ds.dataset(file_path, format="parquet")
+    pa_wm = pa.scalar(watermark_utc, type=pa.timestamp("ns", tz="UTC"))
+    filter_expr = pc.field(ts_col) > pa_wm
+
+    scanner = dataset.scanner(filter=filter_expr, batch_size=batch_size)
+    for record_batch in scanner.to_batches():
+        if record_batch.num_rows == 0:
+            continue
+        df = record_batch.to_pandas()
+        # Convert NaN values to None for clean SQL NULL insertion
+        df = df.where(pd.notnull(df), None)
+        yield df.to_dict(orient="records")
+
+
+def extract_customer_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
     """
     Extracts customer profile changes occurred after watermark.
-    Simulates operational CRM / auth database updates with CDC flags.
     """
-    batch_id = str(uuid.uuid4())[:8]
-    now = datetime.now(timezone.utc)
-    
-    # Representative records demonstrating Insert, Update, and Delete operations
-    records = [
-        {
-            "customer_id": f"CUST-10{i:03d}",
-            "first_name": f"User{i}",
-            "last_name": "Doe",
-            "email": f"user{i}@example.com",
-            "country_code": "US" if i % 2 == 0 else "GB",
-            "plan_tier": "PRO" if i % 3 == 0 else "FREE",
-            "account_status": "ACTIVE",
-            "acquisition_channel": "Organic Search" if i % 2 == 0 else "Paid Social",
-            "source_updated_at": now,
-            "_source_op": "I",
-            "_is_deleted": False,
-            "_batch_id": batch_id
-        }
-        for i in range(1, min(batch_size + 1, 51))
-    ]
-    return records
+    for batch in extract_batches("customers", watermark, batch_size=batch_size):
+        return batch
+    return []
 
 
-def extract_orders_batch(watermark: datetime, batch_size: int = 1000) -> List[Dict[str, Any]]:
+def extract_orders_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
     """
     Extracts orders placed or modified after watermark.
     """
-    batch_id = str(uuid.uuid4())[:8]
-    now = datetime.now(timezone.utc)
-    
-    records = [
-        {
-            "order_id": f"ORD-2026-{10000 + i}",
-            "customer_id": f"CUST-10{ (i % 50) + 1:03d}",
-            "order_status": "COMPLETED" if i % 10 != 0 else "REFUNDED",
-            "order_timestamp": now,
-            "order_amount_usd": round(25.00 + (i * 3.75) % 300, 2),
-            "discount_usd": 5.00 if i % 4 == 0 else 0.00,
-            "payment_method": "CREDIT_CARD" if i % 2 == 0 else "STRIPE",
-            "shipping_country": "US" if i % 3 == 0 else "CA",
-            "source_updated_at": now,
-            "_source_op": "I",
-            "_batch_id": batch_id
-        }
-        for i in range(1, min(batch_size + 1, 101))
-    ]
-    return records
+    for batch in extract_batches("orders", watermark, batch_size=batch_size):
+        return batch
+    return []
 
 
-def extract_subscriptions_batch(watermark: datetime, batch_size: int = 500) -> List[Dict[str, Any]]:
+def extract_subscriptions_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
     """
     Extracts SaaS subscription state transition events.
     """
-    batch_id = str(uuid.uuid4())[:8]
-    now = datetime.now(timezone.utc)
-
-    records = [
-        {
-            "subscription_event_id": f"SUB-EVT-{5000 + i}",
-            "subscription_id": f"SUB-{1000 + (i % 30)}",
-            "customer_id": f"CUST-10{ (i % 50) + 1:03d}",
-            "plan_tier": "PRO" if i % 2 == 0 else "ENTERPRISE",
-            "monthly_recurring_revenue": 79.00 if i % 2 == 0 else 299.00,
-            "status": "ACTIVE",
-            "billing_frequency": "MONTHLY",
-            "started_at": watermark,
-            "cancelled_at": None,
-            "event_timestamp": now,
-            "_source_op": "I",
-            "_batch_id": batch_id
-        }
-        for i in range(1, min(batch_size + 1, 51))
-    ]
-    return records
+    for batch in extract_batches("subscriptions", watermark, batch_size=batch_size):
+        return batch
+    return []
 
 
-def extract_events_batch(watermark: datetime, batch_size: int = 2000) -> List[Dict[str, Any]]:
+def extract_events_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
     """
     Extracts append-only clickstream telemetry events.
     """
-    batch_id = str(uuid.uuid4())[:8]
-    now = datetime.now(timezone.utc)
-
-    records = [
-        {
-            "event_id": f"EVT-{90000 + i}",
-            "customer_id": f"CUST-10{ (i % 50) + 1:03d}",
-            "session_id": f"SESS-{i // 5}",
-            "event_name": "checkout_completed" if i % 5 == 0 else "product_viewed",
-            "device_category": "desktop" if i % 2 == 0 else "mobile",
-            "operating_system": "macOS" if i % 3 == 0 else "Windows",
-            "page_path": "/checkout" if i % 5 == 0 else "/pricing",
-            "event_timestamp": now,
-            "_batch_id": batch_id
-        }
-        for i in range(1, min(batch_size + 1, 151))
-    ]
-    return records
+    for batch in extract_batches("events", watermark, batch_size=batch_size):
+        return batch
+    return []

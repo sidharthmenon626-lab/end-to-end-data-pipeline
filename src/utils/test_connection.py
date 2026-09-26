@@ -20,26 +20,20 @@ def test_connection() -> bool:
         with engine.connect() as conn:
             # 1. Check basic connection and server version
             version_res = conn.execute(text("SELECT version();")).scalar()
-            print(f"[✓] Connected successfully to warehouse target!")
+            print("[OK] Connected successfully to warehouse target!")
             print(f"    Version: {version_res.split(',')[0] if version_res else 'Unknown'}")
             
             # 2. Check schemas
             print("\nChecking required pipeline schemas:")
             required_schemas = ["raw", "staging", "marts"]
-            query = text("""
-                SELECT schema_name 
-                FROM information_schema.schemata 
-                WHERE schema_name IN :schemas;
-            """)
-            existing_schemas = [
-                row[0] for row in conn.execute(query, {"schemas": tuple(required_schemas)})
-            ]
+            query = text("SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('raw', 'staging', 'marts');")
+            existing_schemas = [row[0] for row in conn.execute(query)]
             
             for schema in required_schemas:
                 if schema in existing_schemas:
-                    print(f"  [✓] Schema '{schema}' exists.")
+                    print(f"  [OK] Schema '{schema}' exists.")
                 else:
-                    print(f"  [✗] Schema '{schema}' is MISSING (will be created by init.sql).")
+                    print(f"  [MISSING] Schema '{schema}' is MISSING (will be created by init.sql).")
                     
         print("\n[SUCCESS] Warehouse environment is ready for ingestion.")
         print("=" * 60)
