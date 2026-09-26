@@ -1,0 +1,128 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Cleaned and standardized customer dimension staging view over raw.raw_customers."
+    columns:
+      - name: customer_id
+        description: "Primary key for customer entity."
+        tests:
+          - unique
+          - not_null
+      - name: plan_tier
+        description: "Standardized customer plan tier."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['FREE', 'STARTER', 'PRO', 'ENTERPRISE']
+      - name: account_status
+        description: "Standardized customer account status."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ACTIVE', 'SUSPENDED', 'CHURNED', 'CANCELLED', 'PENDING']
+      - name: source_updated_at
+        description: "Source-level update timestamp."
+        tests:
+          - not_null
+      - name: is_deleted
+        description: "Tombstone flag indicating if record is marked deleted in source."
+        tests:
+          - not_null
+
+  - name: stg_orders
+    description: "Cleaned, type-cast, and standardized e-commerce orders staging view over raw.raw_orders."
+    columns:
+      - name: order_id
+        description: "Primary key for the order."
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key referencing customer."
+        tests:
+          - not_null
+      - name: order_status
+        description: "Standardized order status."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['COMPLETED', 'PENDING', 'CANCELLED', 'REFUNDED']
+      - name: order_timestamp
+        description: "Normalized UTC timestamp of order placement."
+        tests:
+          - not_null
+      - name: gross_amount_usd
+        description: "Gross transaction amount in USD."
+        tests:
+          - not_null
+      - name: discount_usd
+        description: "Discount applied in USD."
+        tests:
+          - not_null
+      - name: net_amount_usd
+        description: "Net order amount (gross - discount)."
+        tests:
+          - not_null
+
+  - name: stg_subscriptions
+    description: "Cleaned subscription lifecycle event stream view over raw.raw_subscriptions."
+    columns:
+      - name: subscription_event_id
+        description: "Primary key for the subscription event."
+        tests:
+          - unique
+          - not_null
+      - name: subscription_id
+        description: "Identifier for the continuous subscription contract."
+        tests:
+          - not_null
+      - name: customer_id
+        description: "Foreign key referencing customer."
+        tests:
+          - not_null
+      - name: plan_tier
+        description: "Subscription tier."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['FREE', 'STARTER', 'PRO', 'ENTERPRISE']
+      - name: mrr_amount_usd
+        description: "Monthly recurring revenue normalized to USD."
+        tests:
+          - not_null
+      - name: subscription_status
+        description: "Current status of the subscription at event time."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ACTIVE', 'PAST_DUE', 'CANCELLED', 'EXPIRED', 'TRIALING']
+      - name: started_at
+        description: "Subscription start timestamp."
+        tests:
+          - not_null
+
+  - name: stg_events
+    description: "Standardized clickstream telemetry view over raw.raw_events."
+    columns:
+      - name: event_id
+        description: "Primary key for clickstream event."
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Customer who generated the event."
+        tests:
+          - not_null
+      - name: session_id
+        description: "User session identifier."
+        tests:
+          - not_null
+      - name: event_name
+        description: "Normalized event action name."
+        tests:
+          - not_null
+      - name: event_timestamp
+        description: "Normalized UTC timestamp when event occurred."
+        tests:
+          - not_null

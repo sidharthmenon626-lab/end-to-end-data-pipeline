@@ -42,3 +42,7 @@ Thumbs.db
 
 # Local standalone database cluster
 warehouse_db/
+
+# dbt local files
+.user.yml
+dbt/.user.yml

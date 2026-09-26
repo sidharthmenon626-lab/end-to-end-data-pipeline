@@ -1,0 +1,338 @@
+{
+  "raw_customers": {
+    "total_rows": 50003,
+    "primary_key": "customer_id",
+    "duplicate_pks": 0,
+    "timestamp_column": "source_updated_at",
+    "timestamp_min": "2025-01-01 05:38:16.144165+05:30",
+    "timestamp_max": "2026-09-26 18:52:00.791748+05:30",
+    "columns": [
+      {
+        "name": "customer_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "first_name",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "last_name",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "email",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "country_code",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "plan_tier",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "account_status",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "acquisition_channel",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "source_updated_at",
+        "type": "timestamp with time zone",
+        "nullable": "NO"
+      },
+      {
+        "name": "_source_op",
+        "type": "character",
+        "nullable": "NO"
+      },
+      {
+        "name": "_is_deleted",
+        "type": "boolean",
+        "nullable": "NO"
+      },
+      {
+        "name": "_batch_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "_ingested_at",
+        "type": "timestamp with time zone",
+        "nullable": "YES"
+      }
+    ],
+    "null_counts": {
+      "customer_id": 0,
+      "first_name": 0,
+      "last_name": 0,
+      "email": 0,
+      "country_code": 0,
+      "plan_tier": 0,
+      "account_status": 0,
+      "acquisition_channel": 0,
+      "source_updated_at": 0,
+      "_source_op": 0,
+      "_is_deleted": 0,
+      "_batch_id": 0,
+      "_ingested_at": 0
+    }
+  },
+  "raw_orders": {
+    "total_rows": 400001,
+    "primary_key": "order_id",
+    "duplicate_pks": 0,
+    "timestamp_column": "order_timestamp",
+    "timestamp_min": "2025-01-01 05:30:21.684377+05:30",
+    "timestamp_max": "2026-09-26 13:07:03.715590+05:30",
+    "columns": [
+      {
+        "name": "order_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "customer_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "order_status",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "order_timestamp",
+        "type": "timestamp with time zone",
+        "nullable": "NO"
+      },
+      {
+        "name": "order_amount_usd",
+        "type": "numeric",
+        "nullable": "NO"
+      },
+      {
+        "name": "discount_usd",
+        "type": "numeric",
+        "nullable": "YES"
+      },
+      {
+        "name": "payment_method",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "shipping_country",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "source_updated_at",
+        "type": "timestamp with time zone",
+        "nullable": "NO"
+      },
+      {
+        "name": "_source_op",
+        "type": "character",
+        "nullable": "NO"
+      },
+      {
+        "name": "_batch_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "_ingested_at",
+        "type": "timestamp with time zone",
+        "nullable": "YES"
+      }
+    ],
+    "null_counts": {
+      "order_id": 0,
+      "customer_id": 0,
+      "order_status": 0,
+      "order_timestamp": 0,
+      "order_amount_usd": 0,
+      "discount_usd": 0,
+      "payment_method": 0,
+      "shipping_country": 0,
+      "source_updated_at": 0,
+      "_source_op": 0,
+      "_batch_id": 0,
+      "_ingested_at": 0
+    }
+  },
+  "raw_subscriptions": {
+    "total_rows": 200000,
+    "primary_key": "subscription_id",
+    "duplicate_pks": 160000,
+    "timestamp_column": "started_at",
+    "timestamp_min": "2025-01-01 05:30:43.179987+05:30",
+    "timestamp_max": "2026-03-25 05:29:56.434295+05:30",
+    "columns": [
+      {
+        "name": "subscription_event_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "subscription_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "customer_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "plan_tier",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "monthly_recurring_revenue",
+        "type": "numeric",
+        "nullable": "NO"
+      },
+      {
+        "name": "status",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "billing_frequency",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "started_at",
+        "type": "timestamp with time zone",
+        "nullable": "NO"
+      },
+      {
+        "name": "cancelled_at",
+        "type": "timestamp with time zone",
+        "nullable": "YES"
+      },
+      {
+        "name": "event_timestamp",
+        "type": "timestamp with time zone",
+        "nullable": "NO"
+      },
+      {
+        "name": "_source_op",
+        "type": "character",
+        "nullable": "NO"
+      },
+      {
+        "name": "_batch_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "_ingested_at",
+        "type": "timestamp with time zone",
+        "nullable": "YES"
+      }
+    ],
+    "null_counts": {
+      "subscription_event_id": 0,
+      "subscription_id": 0,
+      "customer_id": 0,
+      "plan_tier": 0,
+      "monthly_recurring_revenue": 0,
+      "status": 0,
+      "billing_frequency": 0,
+      "started_at": 0,
+      "cancelled_at": 0,
+      "event_timestamp": 0,
+      "_source_op": 0,
+      "_batch_id": 0,
+      "_ingested_at": 0
+    }
+  },
+  "raw_events": {
+    "total_rows": 400000,
+    "primary_key": "event_id",
+    "duplicate_pks": 0,
+    "timestamp_column": "event_timestamp",
+    "timestamp_min": "2025-01-01 05:30:43.526210+05:30",
+    "timestamp_max": "2026-03-25 05:29:56.733105+05:30",
+    "columns": [
+      {
+        "name": "event_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "customer_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "session_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "event_name",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "device_category",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "operating_system",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "page_path",
+        "type": "character varying",
+        "nullable": "YES"
+      },
+      {
+        "name": "event_timestamp",
+        "type": "timestamp with time zone",
+        "nullable": "NO"
+      },
+      {
+        "name": "_batch_id",
+        "type": "character varying",
+        "nullable": "NO"
+      },
+      {
+        "name": "_ingested_at",
+        "type": "timestamp with time zone",
+        "nullable": "YES"
+      }
+    ],
+    "null_counts": {
+      "event_id": 0,
+      "customer_id": 0,
+      "session_id": 0,
+      "event_name": 0,
+      "device_category": 0,
+      "operating_system": 0,
+      "page_path": 0,
+      "event_timestamp": 0,
+      "_batch_id": 0,
+      "_ingested_at": 0
+    }
+  }
+}

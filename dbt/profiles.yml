@@ -1,0 +1,13 @@
+analytics_dw:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DB_HOST', 'localhost') }}"
+      user: "{{ env_var('DB_USER', 'pipeline_user') }}"
+      password: "{{ env_var('DB_PASSWORD', 'pipeline_secure_pass') }}"
+      port: 5433
+      dbname: "{{ env_var('DB_NAME', 'analytics_dw') }}"
+      schema: public
+      threads: 4
+      keepalives_idle: 0

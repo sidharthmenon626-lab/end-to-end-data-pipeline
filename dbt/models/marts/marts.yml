@@ -1,0 +1,328 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Static date dimension table covering calendar years 2020 through 2030 (4,018 daily records)."
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: date_key
+        data_type: integer
+        description: "Primary key in YYYYMMDD format."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: date_day
+        data_type: date
+        description: "Standard Gregorian calendar date."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: year
+        data_type: integer
+        description: "Calendar year (e.g. 2025)."
+        constraints:
+          - type: not_null
+      - name: quarter
+        data_type: integer
+        description: "Calendar quarter (1 to 4)."
+        constraints:
+          - type: not_null
+      - name: month
+        data_type: integer
+        description: "Calendar month number (1 to 12)."
+        constraints:
+          - type: not_null
+      - name: month_name
+        data_type: varchar(16)
+        description: "Full calendar month name (e.g. January)."
+        constraints:
+          - type: not_null
+      - name: week_of_year
+        data_type: integer
+        description: "ISO calendar week of the year."
+        constraints:
+          - type: not_null
+      - name: day_of_month
+        data_type: integer
+        description: "Day of the month (1 to 31)."
+        constraints:
+          - type: not_null
+      - name: day_of_week
+        data_type: integer
+        description: "ISO day of the week (1 = Monday, 7 = Sunday)."
+        constraints:
+          - type: not_null
+      - name: day_name
+        data_type: varchar(16)
+        description: "Full day of week name (e.g. Monday)."
+        constraints:
+          - type: not_null
+      - name: is_weekend
+        data_type: boolean
+        description: "Boolean flag: TRUE if Saturday or Sunday, FALSE otherwise."
+        constraints:
+          - type: not_null
+
+  - name: dim_customer
+    description: "SCD Type II customer dimension tracking profile changes, plan tiers, and validity intervals."
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_sk
+        data_type: varchar(32)
+        description: "Surrogate primary key: MD5(customer_id || '|' || valid_from)."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        data_type: varchar(64)
+        description: "Natural business key for the customer."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: first_name
+        data_type: varchar(128)
+        description: "Customer first name."
+      - name: last_name
+        data_type: varchar(128)
+        description: "Customer last name."
+      - name: email
+        data_type: varchar(255)
+        description: "Customer contact email address."
+      - name: country_code
+        data_type: varchar(8)
+        description: "ISO 3166-1 alpha-2 or alpha-3 country code."
+      - name: plan_tier
+        data_type: varchar(32)
+        description: "Current subscription plan tier."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['FREE', 'STARTER', 'PRO', 'ENTERPRISE']
+      - name: account_status
+        data_type: varchar(32)
+        description: "Customer account status."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: acquisition_channel
+        data_type: varchar(64)
+        description: "Marketing channel through which customer was acquired."
+      - name: valid_from
+        data_type: timestamp with time zone
+        description: "Start of chronological validity interval for this version."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: valid_to
+        data_type: timestamp with time zone
+        description: "End of validity interval ('9999-12-31' for current active version)."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: is_current
+        data_type: boolean
+        description: "TRUE if this is the active current version, FALSE if historical."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+
+  - name: fact_orders
+    description: "Transactional fact table capturing customer purchases, discounts, and net revenue."
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: order_id
+        data_type: varchar(64)
+        description: "Primary key identifying the order transaction."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        data_type: varchar(64)
+        description: "Foreign key referencing dim_customer.customer_id."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: order_status
+        data_type: varchar(32)
+        description: "Transaction completion status."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['COMPLETED', 'PENDING', 'CANCELLED', 'REFUNDED']
+      - name: order_timestamp
+        data_type: timestamp with time zone
+        description: "Normalized UTC timestamp of order placement."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: order_date
+        data_type: date
+        description: "Calendar date of order placement."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: date_key
+        data_type: integer
+        description: "Foreign key referencing dim_date.date_key (YYYYMMDD)."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: gross_amount_usd
+        data_type: numeric(12, 2)
+        description: "Gross order amount in USD."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: discount_usd
+        data_type: numeric(12, 2)
+        description: "Promotional discount deducted in USD."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: net_amount_usd
+        data_type: numeric(12, 2)
+        description: "Net collected revenue (gross - discount)."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: payment_method
+        data_type: varchar(32)
+        description: "Payment method used for checkout."
+      - name: shipping_country
+        data_type: varchar(8)
+        description: "Destination shipping country code."
+
+  - name: fact_subscription_events
+    description: "Fact table recording SaaS subscription lifecycle transitions, tier upgrades/downgrades, and MRR."
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: subscription_event_id
+        data_type: varchar(64)
+        description: "Primary key identifying the lifecycle event."
+        constraints:
+          - type: not_null
+        tests:
+          - unique
+          - not_null
+      - name: subscription_id
+        data_type: varchar(64)
+        description: "Foreign key identifying the parent subscription entity."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: customer_id
+        data_type: varchar(64)
+        description: "Foreign key referencing dim_customer.customer_id."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: plan_tier
+        data_type: varchar(32)
+        description: "Subscription tier active at event time."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['FREE', 'STARTER', 'PRO', 'ENTERPRISE']
+      - name: mrr_amount_usd
+        data_type: numeric(12, 2)
+        description: "Monthly recurring revenue impact."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: subscription_status
+        data_type: varchar(32)
+        description: "Status resulting from this lifecycle event."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ACTIVE', 'PAST_DUE', 'CANCELLED', 'EXPIRED', 'TRIALING']
+      - name: billing_frequency
+        data_type: varchar(32)
+        description: "Billing interval (e.g. MONTHLY, ANNUAL)."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: started_at
+        data_type: timestamp with time zone
+        description: "Subscription contract start timestamp."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: cancelled_at
+        data_type: timestamp with time zone
+        description: "Cancellation timestamp, if applicable."
+      - name: event_timestamp
+        data_type: timestamp with time zone
+        description: "Timestamp when the event was recorded."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: event_date
+        data_type: date
+        description: "Calendar date of event."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      - name: date_key
+        data_type: integer
+        description: "Foreign key referencing dim_date.date_key."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: is_active
+        data_type: boolean
+        description: "Boolean flag: TRUE if subscription is currently active."
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
