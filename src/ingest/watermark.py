@@ -1,13 +1,14 @@
 """
 Persistent Watermark Management Module.
 Ensures high-water marks survive process restarts and integrate with database transactions.
+Tracks batch IDs, status, row counts, and error metadata.
 """
 
 import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Dict, Any
 from sqlalchemy import text
 from src.utils.db import get_engine
 
@@ -45,6 +46,9 @@ class WatermarkStore:
                     source_name         VARCHAR(64) PRIMARY KEY,
                     last_watermark      TIMESTAMP WITH TIME ZONE NOT NULL,
                     records_extracted   BIGINT NOT NULL DEFAULT 0,
+                    last_batch_id       VARCHAR(64),
+                    status              VARCHAR(16) NOT NULL DEFAULT 'SUCCESS',
+                    error_message       TEXT,
                     last_success_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
             """))
@@ -81,9 +85,49 @@ class WatermarkStore:
 
         return default
 
-    def update_watermark(self, source_name: str, new_watermark: datetime, records_count: int = 0) -> None:
+    def get_watermark_details(self, source_name: str) -> Optional[Dict[str, Any]]:
         """
-        Persists an updated watermark timestamp and batch count.
+        Retrieves comprehensive audit details for a source watermark.
+        """
+        if self.use_db:
+            try:
+                engine = get_engine()
+                with engine.connect() as conn:
+                    row = conn.execute(
+                        text("""
+                            SELECT source_name, last_watermark, records_extracted,
+                                   last_batch_id, status, error_message, last_success_at
+                            FROM raw._pipeline_watermarks
+                            WHERE source_name = :s
+                        """),
+                        {"s": source_name}
+                    ).mappings().first()
+                    if row:
+                        return dict(row)
+            except Exception as e:
+                logger.warning(f"Failed to read watermark details from DB: {e}")
+
+        if os.path.exists(FALLBACK_STATE_PATH):
+            try:
+                with open(FALLBACK_STATE_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if source_name in data:
+                        return data[source_name]
+            except Exception:
+                pass
+        return None
+
+    def update_watermark(
+        self,
+        source_name: str,
+        new_watermark: datetime,
+        records_count: int = 0,
+        batch_id: Optional[str] = None,
+        status: str = "SUCCESS",
+        error_message: Optional[str] = None
+    ) -> None:
+        """
+        Persists an updated watermark timestamp, batch metadata, and status.
         """
         if not new_watermark.tzinfo:
             new_watermark = new_watermark.replace(tzinfo=timezone.utc)
@@ -94,13 +138,26 @@ class WatermarkStore:
                 engine = get_engine()
                 with engine.begin() as conn:
                     conn.execute(text("""
-                        INSERT INTO raw._pipeline_watermarks (source_name, last_watermark, records_extracted, last_success_at)
-                        VALUES (:s, :wm, :cnt, CURRENT_TIMESTAMP)
+                        INSERT INTO raw._pipeline_watermarks (
+                            source_name, last_watermark, records_extracted,
+                            last_batch_id, status, error_message, last_success_at
+                        )
+                        VALUES (:s, :wm, :cnt, :bid, :stat, :err, CURRENT_TIMESTAMP)
                         ON CONFLICT (source_name) DO UPDATE SET
                             last_watermark = EXCLUDED.last_watermark,
                             records_extracted = raw._pipeline_watermarks.records_extracted + EXCLUDED.records_extracted,
+                            last_batch_id = EXCLUDED.last_batch_id,
+                            status = EXCLUDED.status,
+                            error_message = EXCLUDED.error_message,
                             last_success_at = CURRENT_TIMESTAMP;
-                    """), {"s": source_name, "wm": new_watermark, "cnt": records_count})
+                    """), {
+                        "s": source_name,
+                        "wm": new_watermark,
+                        "cnt": records_count,
+                        "bid": batch_id,
+                        "stat": status,
+                        "err": error_message
+                    })
             except Exception as e:
                 logger.error(f"Failed to update watermark in DB: {e}")
 
@@ -117,10 +174,16 @@ class WatermarkStore:
         file_data[source_name] = {
             "last_watermark": new_watermark.isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
-            "records_extracted": records_count
+            "records_extracted": records_count,
+            "last_batch_id": batch_id,
+            "status": status,
+            "error_message": error_message
         }
 
         with open(FALLBACK_STATE_PATH, "w", encoding="utf-8") as f:
             json.dump(file_data, f, indent=2)
 
-        logger.info(f"Committed watermark for {source_name}: {new_watermark.isoformat()} (+{records_count} rows)")
+        logger.info(
+            f"Committed watermark for {source_name}: {new_watermark.isoformat()} "
+            f"(+{records_count:,} rows, batch={batch_id}, status={status})"
+        )

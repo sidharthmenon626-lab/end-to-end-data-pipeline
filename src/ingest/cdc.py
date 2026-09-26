@@ -1,6 +1,7 @@
 """
 Change Data Capture (CDC) and Upsert Handler.
-Applies atomic merges to the raw landing schema with full mutation awareness (INSERT, UPDATE, DELETE).
+Applies atomic merges to the raw landing schema with full mutation awareness (INSERT, UPDATE, DELETE)
+and out-of-order sequence protection.
 """
 
 import logging
@@ -14,13 +15,14 @@ logger = logging.getLogger(__name__)
 class CDCHandler:
     """
     Executes idempotent upserts and CDC tombstones in PostgreSQL.
+    Protects against out-of-order event clobbering via monotonic timestamp guards.
     """
 
     @staticmethod
     def upsert_customers(records: List[Dict[str, Any]]) -> int:
         """
         Upserts customers into raw.raw_customers.
-        Handles UPDATE mutations and DELETE tombstones.
+        Handles UPDATE mutations and DELETE tombstones with out-of-order sequence guard.
         """
         if not records:
             return 0
@@ -48,7 +50,8 @@ class CDCHandler:
                 _source_op = EXCLUDED._source_op,
                 _is_deleted = EXCLUDED._is_deleted,
                 _batch_id = EXCLUDED._batch_id,
-                _ingested_at = CURRENT_TIMESTAMP;
+                _ingested_at = CURRENT_TIMESTAMP
+            WHERE EXCLUDED.source_updated_at >= raw.raw_customers.source_updated_at;
         """)
 
         with engine.begin() as conn:
@@ -58,7 +61,7 @@ class CDCHandler:
     @staticmethod
     def upsert_orders(records: List[Dict[str, Any]]) -> int:
         """
-        Idempotent upsert of orders into raw.raw_orders.
+        Idempotent upsert of orders into raw.raw_orders with sequence protection.
         """
         if not records:
             return 0
@@ -81,7 +84,8 @@ class CDCHandler:
                 source_updated_at = EXCLUDED.source_updated_at,
                 _source_op = EXCLUDED._source_op,
                 _batch_id = EXCLUDED._batch_id,
-                _ingested_at = CURRENT_TIMESTAMP;
+                _ingested_at = CURRENT_TIMESTAMP
+            WHERE EXCLUDED.source_updated_at >= raw.raw_orders.source_updated_at;
         """)
 
         with engine.begin() as conn:
@@ -112,7 +116,8 @@ class CDCHandler:
                 monthly_recurring_revenue = EXCLUDED.monthly_recurring_revenue,
                 _source_op = EXCLUDED._source_op,
                 _batch_id = EXCLUDED._batch_id,
-                _ingested_at = CURRENT_TIMESTAMP;
+                _ingested_at = CURRENT_TIMESTAMP
+            WHERE EXCLUDED.event_timestamp >= raw.raw_subscriptions.event_timestamp;
         """)
 
         with engine.begin() as conn:

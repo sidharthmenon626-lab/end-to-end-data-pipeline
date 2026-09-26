@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS raw._pipeline_watermarks (
     source_name             VARCHAR(64) PRIMARY KEY,
     last_watermark          TIMESTAMP WITH TIME ZONE NOT NULL,
     records_extracted       BIGINT NOT NULL DEFAULT 0,
+    last_batch_id           VARCHAR(64),
+    status                  VARCHAR(16) NOT NULL DEFAULT 'SUCCESS',
+    error_message           TEXT,
     last_success_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

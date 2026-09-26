@@ -1,24 +1,28 @@
 """
 Change Data Capture (CDC) Mutation Proof Script.
-Demonstrates mutating an operational record in the source (UPDATE & DELETE)
-and proving the warehouse captures and reflects the exact state changes.
+Demonstrates mutating an operational record in the source (UPDATE, DELETE tombstone)
+and validates monotonic sequence protection against out-of-order mutations.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import text
 from src.utils.db import get_engine
 from src.ingest.cdc import CDCHandler
-from src.ingest.watermark import WatermarkStore
 
 
 def test_cdc_proof():
     print("=" * 70)
-    print("  CDC MUTATION PROOF TEST: UPDATE & DELETE VERIFICATION")
+    print("  CDC MUTATION PROOF TEST: UPDATE, DELETE & OUT-OF-ORDER VERIFICATION")
     print("=" * 70)
 
     engine = get_engine()
     test_cust_id = "CUST-PROOF-999"
-    now = datetime.now(timezone.utc)
+
+    # Reset any existing test record to guarantee clean baseline
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM raw.raw_customers WHERE customer_id = :id"), {"id": test_cust_id})
+
+    t_base = datetime.now(timezone.utc)
 
     # -------------------------------------------------------------------------
     # STEP 1: Insert Baseline Customer (Plan: FREE)
@@ -33,7 +37,7 @@ def test_cdc_proof():
         "plan_tier": "FREE",
         "account_status": "ACTIVE",
         "acquisition_channel": "Direct",
-        "source_updated_at": now,
+        "source_updated_at": t_base,
         "_source_op": "I",
         "_is_deleted": False,
         "_batch_id": "BATCH-001"
@@ -53,7 +57,7 @@ def test_cdc_proof():
     # STEP 2: Mutate Customer (UPDATE plan_tier -> 'ENTERPRISE')
     # -------------------------------------------------------------------------
     print("\n[STEP 2] Simulating Source UPDATE: Customer upgrades to 'ENTERPRISE'...")
-    updated_now = datetime.now(timezone.utc)
+    t_upgrade = t_base + timedelta(hours=2)
     mutation_record = [{
         "customer_id": test_cust_id,
         "first_name": "Alice",
@@ -63,7 +67,7 @@ def test_cdc_proof():
         "plan_tier": "ENTERPRISE",
         "account_status": "ACTIVE",
         "acquisition_channel": "Direct",
-        "source_updated_at": updated_now,
+        "source_updated_at": t_upgrade,
         "_source_op": "U",
         "_is_deleted": False,
         "_batch_id": "BATCH-002"
@@ -82,10 +86,40 @@ def test_cdc_proof():
     print("  [OK] Verified: UPDATE correctly updated the existing record without duplicate insertion.")
 
     # -------------------------------------------------------------------------
-    # STEP 3: Mutate Customer (DELETE / Soft-Delete Tombstone)
+    # STEP 3: Out-of-Order Stale Mutation Guard Verification
     # -------------------------------------------------------------------------
-    print("\n[STEP 3] Simulating Source DELETE: Account cancellation tombstone...")
-    delete_now = datetime.now(timezone.utc)
+    print("\n[STEP 3] Simulating Stale Out-of-Order Mutation: Event with older timestamp arrives...")
+    t_stale = t_base + timedelta(hours=1)  # Between t_base and t_upgrade
+    stale_record = [{
+        "customer_id": test_cust_id,
+        "first_name": "Alice",
+        "last_name": "Tester",
+        "email": "alice@old.org",
+        "country_code": "US",
+        "plan_tier": "BASIC_STALE",
+        "account_status": "ACTIVE",
+        "acquisition_channel": "Direct",
+        "source_updated_at": t_stale,
+        "_source_op": "U",
+        "_is_deleted": False,
+        "_batch_id": "BATCH-STALE"
+    }]
+    CDCHandler.upsert_customers(stale_record)
+
+    with engine.connect() as conn:
+        res = conn.execute(
+            text("SELECT customer_id, plan_tier, source_updated_at FROM raw.raw_customers WHERE customer_id = :id"),
+            {"id": test_cust_id}
+        ).mappings().first()
+        print(f"  Warehouse Post-Stale Attempt: plan_tier = '{res['plan_tier']}' (Timestamp: {res['source_updated_at']})")
+        assert res["plan_tier"] == "ENTERPRISE", "Stale event clobbered newer record state!"
+    print("  [OK] Verified: Monotonic sequence guard prevented stale event from overwriting current state.")
+
+    # -------------------------------------------------------------------------
+    # STEP 4: Mutate Customer (DELETE / Soft-Delete Tombstone)
+    # -------------------------------------------------------------------------
+    print("\n[STEP 4] Simulating Source DELETE: Account cancellation tombstone...")
+    t_delete = t_upgrade + timedelta(hours=3)
     tombstone_record = [{
         "customer_id": test_cust_id,
         "first_name": "Alice",
@@ -95,7 +129,7 @@ def test_cdc_proof():
         "plan_tier": "ENTERPRISE",
         "account_status": "CHURNED",
         "acquisition_channel": "Direct",
-        "source_updated_at": delete_now,
+        "source_updated_at": t_delete,
         "_source_op": "D",
         "_is_deleted": True,
         "_batch_id": "BATCH-003"
@@ -114,7 +148,7 @@ def test_cdc_proof():
     print("  [OK] Verified: DELETE tombstone captured in warehouse with _is_deleted = TRUE.")
 
     print("\n" + "=" * 70)
-    print("  [PROOF COMPLETED] Real-world CDC operations verified successfully.")
+    print("  [PROOF COMPLETED] Real-world CDC operations & sequence guards verified.")
     print("=" * 70)
 
 
