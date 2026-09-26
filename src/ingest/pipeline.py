@@ -5,13 +5,13 @@ Supports late-arriving data lookback windows and detailed batch audit logging.
 """
 
 import argparse
-from datetime import datetime, timezone, timedelta
 import logging
 import uuid
-from typing import Optional, Dict
-from src.ingest.watermark import WatermarkStore
-from src.ingest.extract import extract_batches, ExtractionBatch
+from datetime import UTC, datetime, timedelta
+
 from src.ingest.cdc import CDCHandler
+from src.ingest.extract import extract_batches
+from src.ingest.watermark import WatermarkStore
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -22,12 +22,7 @@ class IngestionPipeline:
     Executes incremental loads across all source datasets with late-data lookback support.
     """
 
-    def __init__(
-        self,
-        full_refresh: bool = False,
-        batch_size: int = 25000,
-        lookback_minutes: int = 0
-    ):
+    def __init__(self, full_refresh: bool = False, batch_size: int = 25000, lookback_minutes: int = 0):
         self.full_refresh = full_refresh
         self.batch_size = batch_size
         self.lookback_window = timedelta(minutes=lookback_minutes) if lookback_minutes > 0 else None
@@ -36,8 +31,8 @@ class IngestionPipeline:
 
     def run_source(self, source_name: str) -> int:
         logger.info(f"--- Starting Ingestion for source: {source_name} [Batch ID: {self.run_batch_id}] ---")
-        
-        default_wm = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+        default_wm = datetime(1970, 1, 1, tzinfo=UTC)
         current_wm = default_wm if self.full_refresh else self.wm_store.get_watermark(source_name, default=default_wm)
         logger.info(f"Committed Watermark for {source_name}: {current_wm.isoformat()}")
 
@@ -49,10 +44,7 @@ class IngestionPipeline:
 
         try:
             for batch in extract_batches(
-                source_name,
-                current_wm,
-                batch_size=self.batch_size,
-                lookback_window=self.lookback_window
+                source_name, current_wm, batch_size=self.batch_size, lookback_window=self.lookback_window
             ):
                 if batch.row_count == 0:
                     continue
@@ -96,7 +88,7 @@ class IngestionPipeline:
                 records_count=total_processed,
                 batch_id=self.run_batch_id,
                 status="SUCCESS",
-                error_message=None
+                error_message=None,
             )
             logger.info(
                 f"[SUCCESS] Source '{source_name}' completed. "
@@ -113,11 +105,11 @@ class IngestionPipeline:
                 records_count=0,
                 batch_id=self.run_batch_id,
                 status="FAILED",
-                error_message=str(e)
+                error_message=str(e),
             )
             raise e
 
-    def run_all(self) -> Dict[str, int]:
+    def run_all(self) -> dict[str, int]:
         sources = ["customers", "orders", "subscriptions", "events"]
         results = {}
         for s in sources:
@@ -131,15 +123,16 @@ class IngestionPipeline:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Ingestion Pipeline")
-    parser.add_argument("--source", type=str, help="Specific source to ingest (customers, orders, subscriptions, events)")
+    parser.add_argument(
+        "--source", type=str, help="Specific source to ingest (customers, orders, subscriptions, events)"
+    )
     parser.add_argument("--full-refresh", action="store_true", help="Reset watermark and reload from epoch")
-    parser.add_argument("--lookback-minutes", type=int, default=0, help="Lookback window in minutes for late-arriving data")
+    parser.add_argument(
+        "--lookback-minutes", type=int, default=0, help="Lookback window in minutes for late-arriving data"
+    )
     args = parser.parse_args()
 
-    pipeline = IngestionPipeline(
-        full_refresh=args.full_refresh,
-        lookback_minutes=args.lookback_minutes
-    )
+    pipeline = IngestionPipeline(full_refresh=args.full_refresh, lookback_minutes=args.lookback_minutes)
     if args.source:
         pipeline.run_source(args.source)
     else:

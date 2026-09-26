@@ -6,7 +6,7 @@ Milestone 5: Orchestrate with Airflow
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -18,7 +18,8 @@ os.environ["AIRFLOW_HOME"] = str(PROJECT_ROOT / "airflow")
 os.environ["PYTHONPATH"] = str(PROJECT_ROOT)
 
 from airflow.models.dagbag import DagBag
-from airflow.dags.pipeline_dag import dag, log_pipeline_incident, INCIDENT_LOG
+
+from airflow.dags.pipeline_dag import INCIDENT_LOG, log_pipeline_incident
 
 
 @pytest.fixture(scope="module")
@@ -83,8 +84,8 @@ def test_retry_and_exponential_backoff_policy(dag_bag):
     # Validate exponential backoff progression math
     # Attempt 1 delay = 30s * 2^0 = 30s
     # Attempt 2 delay = 30s * 2^1 = 60s
-    delay_1 = timedelta(seconds=30) * (2 ** 0)
-    delay_2 = timedelta(seconds=30) * (2 ** 1)
+    delay_1 = timedelta(seconds=30) * (2**0)
+    delay_2 = timedelta(seconds=30) * (2**1)
     assert delay_1 == timedelta(seconds=30)
     assert delay_2 == timedelta(seconds=60)
     assert delay_2 <= timedelta(minutes=5)
@@ -99,7 +100,7 @@ def test_incident_logging_callback():
 
     test_context = {
         "task_instance": mock_ti,
-        "logical_date": datetime(2026, 3, 25, 0, 0, 0, tzinfo=timezone.utc),
+        "logical_date": datetime(2026, 3, 25, 0, 0, 0, tzinfo=UTC),
         "exception": RuntimeError("Simulated transient connection timeout"),
     }
 

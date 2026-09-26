@@ -5,11 +5,13 @@ filtering by watermark boundary with configurable late-data lookback windows.
 Provides structured ExtractionBatch metadata separating extraction from loading.
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
 import logging
 import os
-from typing import Dict, List, Any, Iterator, Optional
+from collections.abc import Iterator
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import pandas as pd
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -26,10 +28,11 @@ class ExtractionBatch:
     """
     Metadata-rich extraction payload separating extraction concerns from warehouse loading.
     """
+
     source_name: str
     start_watermark: datetime
     end_watermark: datetime
-    records: List[Dict[str, Any]]
+    records: list[dict[str, Any]]
     row_count: int
     inserts_count: int
     updates_count: int
@@ -44,14 +47,11 @@ def get_landing_file(source_name: str) -> str:
 
 
 def extract_batches(
-    source_name: str,
-    watermark: datetime,
-    batch_size: int = 25000,
-    lookback_window: Optional[timedelta] = None
+    source_name: str, watermark: datetime, batch_size: int = 25000, lookback_window: timedelta | None = None
 ) -> Iterator[ExtractionBatch]:
     """
     Streams incremental delta record batches from parquet landing zone.
-    
+
     Args:
         source_name: Source stream identifier (customers, orders, subscriptions, events).
         watermark: High-water mark timestamp from previous committed run.
@@ -66,13 +66,10 @@ def extract_batches(
     ts_col = "event_timestamp" if source_name in ["subscriptions", "events"] else "source_updated_at"
 
     # Normalize watermark to UTC
-    if watermark.tzinfo is not None:
-        watermark_utc = watermark.astimezone(timezone.utc)
-    else:
-        watermark_utc = watermark.replace(tzinfo=timezone.utc)
+    watermark_utc = watermark.astimezone(UTC) if watermark.tzinfo is not None else watermark.replace(tzinfo=UTC)
 
     # Apply lookback window if configured and not at historical epoch
-    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
     if lookback_window and watermark_utc > epoch:
         effective_watermark = max(epoch, watermark_utc - lookback_window)
         logger.info(
@@ -107,7 +104,7 @@ def extract_batches(
         if hasattr(batch_max_ts, "to_pydatetime"):
             batch_max_ts = batch_max_ts.to_pydatetime()
         if batch_max_ts.tzinfo is None:
-            batch_max_ts = batch_max_ts.replace(tzinfo=timezone.utc)
+            batch_max_ts = batch_max_ts.replace(tzinfo=UTC)
 
         yield ExtractionBatch(
             source_name=source_name,
@@ -117,7 +114,7 @@ def extract_batches(
             row_count=len(records),
             inserts_count=inserts,
             updates_count=updates,
-            deletes_count=deletes
+            deletes_count=deletes,
         )
 
 
@@ -125,15 +122,12 @@ def extract_full(source_name: str, batch_size: int = 25000) -> Iterator[Extracti
     """
     Executes a full-table extraction starting from the Unix epoch.
     """
-    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
     return extract_batches(source_name, epoch, batch_size=batch_size, lookback_window=None)
 
 
 def extract_incremental(
-    source_name: str,
-    watermark: datetime,
-    batch_size: int = 25000,
-    lookback_window: Optional[timedelta] = None
+    source_name: str, watermark: datetime, batch_size: int = 25000, lookback_window: timedelta | None = None
 ) -> Iterator[ExtractionBatch]:
     """
     Executes incremental watermark-based extraction with optional lookback window.
@@ -145,25 +139,26 @@ def extract_incremental(
 # Backwards Compatibility Wrappers for Legacy Callers
 # ------------------------------------------------------------------------------
 
-def extract_customer_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
+
+def extract_customer_batch(watermark: datetime, batch_size: int = 25000) -> list[dict[str, Any]]:
     for batch in extract_batches("customers", watermark, batch_size=batch_size):
         return batch.records
     return []
 
 
-def extract_orders_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
+def extract_orders_batch(watermark: datetime, batch_size: int = 25000) -> list[dict[str, Any]]:
     for batch in extract_batches("orders", watermark, batch_size=batch_size):
         return batch.records
     return []
 
 
-def extract_subscriptions_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
+def extract_subscriptions_batch(watermark: datetime, batch_size: int = 25000) -> list[dict[str, Any]]:
     for batch in extract_batches("subscriptions", watermark, batch_size=batch_size):
         return batch.records
     return []
 
 
-def extract_events_batch(watermark: datetime, batch_size: int = 25000) -> List[Dict[str, Any]]:
+def extract_events_batch(watermark: datetime, batch_size: int = 25000) -> list[dict[str, Any]]:
     for batch in extract_batches("events", watermark, batch_size=batch_size):
         return batch.records
     return []

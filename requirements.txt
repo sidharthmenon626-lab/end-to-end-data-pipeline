@@ -18,3 +18,6 @@ ruff>=0.1.0
 
 # Transformation
 dbt-postgres>=1.8.0
+
+# Orchestration
+apache-airflow>=3.0.0

@@ -5,9 +5,10 @@ Safely extracts warehouse credentials from environment variables.
 
 import os
 from urllib.parse import quote_plus
+
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine, Connection
+from sqlalchemy.engine import Connection, Engine
 
 # Explicitly load project-level .env regardless of caller current working directory
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,7 +18,7 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 def get_db_url(mask_password: bool = False) -> str:
     """
     Constructs the PostgreSQL connection URL from environment variables.
-    
+
     Args:
         mask_password: If True, replaces the actual password with asterisks for safe logging.
     """

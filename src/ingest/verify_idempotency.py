@@ -4,8 +4,9 @@ Validates that running the ingestion pipeline back-to-back on unchanged data pro
 """
 
 from sqlalchemy import text
-from src.utils.db import get_engine
+
 from src.ingest.pipeline import IngestionPipeline
+from src.utils.db import get_engine
 
 
 def get_table_counts(tables):

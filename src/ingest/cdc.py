@@ -5,8 +5,10 @@ and out-of-order sequence protection.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any
+
 from sqlalchemy import text
+
 from src.utils.db import get_engine
 
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ class CDCHandler:
     """
 
     @staticmethod
-    def upsert_customers(records: List[Dict[str, Any]]) -> int:
+    def upsert_customers(records: list[dict[str, Any]]) -> int:
         """
         Upserts customers into raw.raw_customers.
         Handles UPDATE mutations and DELETE tombstones with out-of-order sequence guard.
@@ -59,7 +61,7 @@ class CDCHandler:
         return len(records)
 
     @staticmethod
-    def upsert_orders(records: List[Dict[str, Any]]) -> int:
+    def upsert_orders(records: list[dict[str, Any]]) -> int:
         """
         Idempotent upsert of orders into raw.raw_orders with sequence protection.
         """
@@ -93,7 +95,7 @@ class CDCHandler:
         return len(records)
 
     @staticmethod
-    def upsert_subscriptions(records: List[Dict[str, Any]]) -> int:
+    def upsert_subscriptions(records: list[dict[str, Any]]) -> int:
         """
         Idempotent upsert of subscription events into raw.raw_subscriptions.
         """
@@ -125,7 +127,7 @@ class CDCHandler:
         return len(records)
 
     @staticmethod
-    def insert_events(records: List[Dict[str, Any]]) -> int:
+    def insert_events(records: list[dict[str, Any]]) -> int:
         """
         Append-only insert of telemetry events. Skips duplicates idempotently.
         """

@@ -7,18 +7,18 @@ Tracks batch IDs, status, row counts, and error metadata.
 import json
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
+
 from sqlalchemy import text
+
 from src.utils.db import get_engine
 
 logger = logging.getLogger(__name__)
 
 # Fallback state file path if database is unreachable
 FALLBACK_STATE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-    "data",
-    "watermarks.json"
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "watermarks.json"
 )
 
 
@@ -40,7 +40,8 @@ class WatermarkStore:
     def _ensure_table(self):
         engine = get_engine()
         with engine.begin() as conn:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE SCHEMA IF NOT EXISTS raw;
                 CREATE TABLE IF NOT EXISTS raw._pipeline_watermarks (
                     source_name         VARCHAR(64) PRIMARY KEY,
@@ -51,14 +52,15 @@ class WatermarkStore:
                     error_message       TEXT,
                     last_success_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
-            """))
+            """)
+            )
 
-    def get_watermark(self, source_name: str, default: Optional[datetime] = None) -> datetime:
+    def get_watermark(self, source_name: str, default: datetime | None = None) -> datetime:
         """
         Retrieves the last committed watermark timestamp for a source.
         """
         if default is None:
-            default = datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            default = datetime(1970, 1, 1, 0, 0, 0, tzinfo=UTC)
 
         if self.use_db:
             try:
@@ -66,17 +68,17 @@ class WatermarkStore:
                 with engine.connect() as conn:
                     result = conn.execute(
                         text("SELECT last_watermark FROM raw._pipeline_watermarks WHERE source_name = :s"),
-                        {"s": source_name}
+                        {"s": source_name},
                     ).scalar()
                     if result:
-                        return result if result.tzinfo else result.replace(tzinfo=timezone.utc)
+                        return result if result.tzinfo else result.replace(tzinfo=UTC)
             except Exception as e:
                 logger.warning(f"Failed to read watermark from DB: {e}. Checking file fallback.")
 
         # File-based fallback
         if os.path.exists(FALLBACK_STATE_PATH):
             try:
-                with open(FALLBACK_STATE_PATH, "r", encoding="utf-8") as f:
+                with open(FALLBACK_STATE_PATH, encoding="utf-8") as f:
                     data = json.load(f)
                     if source_name in data and "last_watermark" in data[source_name]:
                         return datetime.fromisoformat(data[source_name]["last_watermark"])
@@ -85,7 +87,7 @@ class WatermarkStore:
 
         return default
 
-    def get_watermark_details(self, source_name: str) -> Optional[Dict[str, Any]]:
+    def get_watermark_details(self, source_name: str) -> dict[str, Any] | None:
         """
         Retrieves comprehensive audit details for a source watermark.
         """
@@ -93,15 +95,19 @@ class WatermarkStore:
             try:
                 engine = get_engine()
                 with engine.connect() as conn:
-                    row = conn.execute(
-                        text("""
+                    row = (
+                        conn.execute(
+                            text("""
                             SELECT source_name, last_watermark, records_extracted,
                                    last_batch_id, status, error_message, last_success_at
                             FROM raw._pipeline_watermarks
                             WHERE source_name = :s
                         """),
-                        {"s": source_name}
-                    ).mappings().first()
+                            {"s": source_name},
+                        )
+                        .mappings()
+                        .first()
+                    )
                     if row:
                         return dict(row)
             except Exception as e:
@@ -109,7 +115,7 @@ class WatermarkStore:
 
         if os.path.exists(FALLBACK_STATE_PATH):
             try:
-                with open(FALLBACK_STATE_PATH, "r", encoding="utf-8") as f:
+                with open(FALLBACK_STATE_PATH, encoding="utf-8") as f:
                     data = json.load(f)
                     if source_name in data:
                         return data[source_name]
@@ -122,22 +128,23 @@ class WatermarkStore:
         source_name: str,
         new_watermark: datetime,
         records_count: int = 0,
-        batch_id: Optional[str] = None,
+        batch_id: str | None = None,
         status: str = "SUCCESS",
-        error_message: Optional[str] = None
+        error_message: str | None = None,
     ) -> None:
         """
         Persists an updated watermark timestamp, batch metadata, and status.
         """
         if not new_watermark.tzinfo:
-            new_watermark = new_watermark.replace(tzinfo=timezone.utc)
+            new_watermark = new_watermark.replace(tzinfo=UTC)
 
         # 1. Update in Database
         if self.use_db:
             try:
                 engine = get_engine()
                 with engine.begin() as conn:
-                    conn.execute(text("""
+                    conn.execute(
+                        text("""
                         INSERT INTO raw._pipeline_watermarks (
                             source_name, last_watermark, records_extracted,
                             last_batch_id, status, error_message, last_success_at
@@ -150,14 +157,16 @@ class WatermarkStore:
                             status = EXCLUDED.status,
                             error_message = EXCLUDED.error_message,
                             last_success_at = CURRENT_TIMESTAMP;
-                    """), {
-                        "s": source_name,
-                        "wm": new_watermark,
-                        "cnt": records_count,
-                        "bid": batch_id,
-                        "stat": status,
-                        "err": error_message
-                    })
+                    """),
+                        {
+                            "s": source_name,
+                            "wm": new_watermark,
+                            "cnt": records_count,
+                            "bid": batch_id,
+                            "stat": status,
+                            "err": error_message,
+                        },
+                    )
             except Exception as e:
                 logger.error(f"Failed to update watermark in DB: {e}")
 
@@ -166,18 +175,18 @@ class WatermarkStore:
         file_data = {}
         if os.path.exists(FALLBACK_STATE_PATH):
             try:
-                with open(FALLBACK_STATE_PATH, "r", encoding="utf-8") as f:
+                with open(FALLBACK_STATE_PATH, encoding="utf-8") as f:
                     file_data = json.load(f)
             except Exception:
                 file_data = {}
 
         file_data[source_name] = {
             "last_watermark": new_watermark.isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
             "records_extracted": records_count,
             "last_batch_id": batch_id,
             "status": status,
-            "error_message": error_message
+            "error_message": error_message,
         }
 
         with open(FALLBACK_STATE_PATH, "w", encoding="utf-8") as f:

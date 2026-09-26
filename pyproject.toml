@@ -1,0 +1,44 @@
+[project]
+name = "end-to-end-data-pipeline"
+version = "0.1.0"
+description = "Production-ready end-to-end analytics data warehouse pipeline"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "apache-airflow>=3.0.0",
+    "dbt-core>=1.8.0",
+    "dbt-postgres>=1.8.0",
+    "psycopg2-binary>=2.9.9",
+    "pyarrow>=17.0.0",
+    "python-dotenv>=1.0.0",
+    "sqlalchemy>=2.0.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501", # line too long (handled by formatter)
+    "E402", # module level import not at top of file (needed for pre-import env configuration)
+    "B008", # do not perform function calls in argument defaults
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
