@@ -31,6 +31,8 @@ dbt/logs/
 airflow/logs/
 airflow/*.db
 airflow/*.pid
+airflow/*.cfg
+airflow/airflow.cfg
 
 # Operating system artifacts
 .DS_Store
