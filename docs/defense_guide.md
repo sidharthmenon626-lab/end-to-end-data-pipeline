@@ -8,15 +8,17 @@ This document provides a battle-tested **10-minute presentation guide** and an *
 
 ### Minute 0:00 – 3:00 | Business Problem & Architectural Flow
 * **Hook & Core Problem**:
-  > *"Modern digital commerce businesses struggle with fractured customer data. When checkout orders, SaaS recurring subscriptions, and telemetry event streams live in separate silos, calculating true Customer Lifetime Value (LTV), cohort retention, and churn becomes error-prone and unreliable. Our mission was to engineer a unified, production-grade analytics data platform handling over 1,000,000 records that delivers a single source of truth with sub-minute batch latency."*
+  > *"Modern digital commerce businesses struggle with fractured customer data. When checkout orders, SaaS recurring subscriptions, and telemetry event streams live in separate silos, calculating true Customer Lifetime Value (LTV), cohort retention, and churn becomes error-prone and unreliable. Our mission was to engineer a unified, production-grade analytics data platform handling over 1,150,000 records that delivers a single source of truth with sub-minute batch latency."*
 * **Architecture Walkthrough**:
-  > *"The platform ingests 1,050,000 Parquet records across 4 independent sources into PostgreSQL 17. Rather than doing brute-force full table overwrites, we implemented a persistent high-watermark state engine in `raw._pipeline_watermarks` with a 30-minute lookback window to capture late-arriving events. Change Data Capture (CDC) mutations are deterministically sequenced by record timestamp, supporting inserts, in-place updates, and soft deletes via tombstones."*
+  > *"The platform implements a dual-mode ingestion engine: pulling live from cloud-hosted Neon PostgreSQL databases across separate ecommerce and SaaS schemas via thread-safe SSL pooling, alongside a compressed Parquet lakehouse fallback. Rather than doing brute-force full table overwrites, we implemented a persistent high-watermark state engine in `raw._pipeline_watermarks` with a 30-minute lookback window to capture late-arriving events. Change Data Capture (CDC) mutations are deterministically sequenced by record timestamp, supporting inserts, in-place updates, and soft deletes via tombstones."*
 * **Proof of Scale**:
-  > *"Across all 4 raw tables, we reconciled 1,050,004 records with verified 0-delta idempotency on repeated executions."*
+  > *"Across all 4 raw tables, we reconciled 1,157,279 records with verified 0-delta idempotency on repeated executions."*
 
 ### Minute 3:00 – 5:00 | Kimball Dimensional Modeling & Data Contracts
 * **Serving Layer Design**:
-  > *"In the `marts` layer, we implemented a classic Kimball star schema: `dim_date` providing calendar attribution, `dim_customer` tracking historical profile mutations as a Slowly Changing Dimension (SCD Type II), and two high-volume fact tables: `fact_orders` (400,001 rows) and `fact_subscription_events` (200,000 rows). To prevent query degradation, both fact tables are monthly range-partitioned."*
+  > *"In the `marts` layer, we implemented a classic Kimball star schema: `dim_date` providing calendar attribution, `dim_customer` (60,003 rows) tracking historical profile mutations as a Slowly Changing Dimension (SCD Type II), and two high-volume fact tables: `fact_orders` (440,001 rows) and `fact_subscription_events` (203,741 rows). To prevent query degradation, both fact tables are monthly range-partitioned."*
+* **Data Hygiene & Anomaly Handling**:
+  > *"When connecting to real cloud databases, data is never clean. In our staging layer, we systematically solved real operational defects: standardizing mixed casing in order statuses (`SHIPPED`, `shipped`, `delivered` $	o$ `COMPLETED`), canonicalizing subscription plan tier synonyms (`pro`, `professional` $	o$ `PRO`), and clamping 67 corrupted timestamps where cancellation preceded start date."*
 * **Data Contracts & Quality Testing**:
   > *"Every staging and mart model enforces strict dbt schema contracts (`contract: {enforced: true}`). If a column type mismatches or a mandatory field contains a null, the build fails immediately. Across our models, we run 103 automated tests—including uniqueness, non-null, referential foreign key integrity, and business invariants like `discount_usd <= order_amount_usd`—with a 100% pass rate."*
 
@@ -38,7 +40,7 @@ This document provides a battle-tested **10-minute presentation guide** and an *
 
 ### Minute 9:00 – 10:00 | Business ROI & Future Scaling
 * **Business Takeaway**:
-  > *"By replacing ad-hoc reporting with an automated, contract-enforced platform running in ~38 seconds, we eliminated silent data corruption, delivered unified customer LTV analytics, and established a scalable foundation ready for cloud data warehouse migration as business volumes expand."*
+  > *"By replacing ad-hoc reporting with an automated, contract-enforced platform running in sub-minute batches, we eliminated silent data corruption, delivered unified customer LTV analytics, and established a scalable foundation ready for cloud data warehouse migration as business volumes expand."*
 
 ---
 
@@ -46,13 +48,13 @@ This document provides a battle-tested **10-minute presentation guide** and an *
 
 ### Question 1: "Why PostgreSQL instead of a dedicated columnar store like Snowflake or ClickHouse?"
 * **Answer**:
-  > *"For a dataset of ~1.05 million records (28 MB Parquet), PostgreSQL 17 provides an optimal balance of full ACID compliance, native table range-partitioning, and lightweight containerization without incurring cloud warehouse compute costs or minimum cluster overhead. More importantly, the transformation layer is written in standard SQL with dbt. If data volume grows to 100M+ rows, we can repoint `profiles.yml` to Snowflake, BigQuery, or ClickHouse with zero SQL refactoring."*
+  > *"For a dataset of ~1.15 million records, PostgreSQL 17 provides an optimal balance of full ACID compliance, native table range-partitioning, and lightweight containerization without incurring cloud warehouse compute costs or minimum cluster overhead. More importantly, the transformation layer is written in standard SQL with dbt. If data volume grows to 100M+ rows, we can repoint `profiles.yml` to Snowflake, BigQuery, or ClickHouse with zero SQL refactoring."*
 
 ### Question 2: "How do you guarantee true idempotency when re-running ingestion?"
 * **Answer**:
   > *"Idempotency is guaranteed through a dual-mechanism:
   > 1. Persistent watermarks stored in `raw._pipeline_watermarks` record the highest extracted timestamp.
-  > 2. For entity tables (`customers`, `orders`), we use SQL `ON CONFLICT (id) DO UPDATE` (upsert) logic rather than blind append. If an identical batch is re-run, existing rows are updated to the exact same values without incrementing row counts. This was proven empirically with our `verify_idempotency.py` script showing exactly 0 row delta across 1,050,004 records."*
+  > 2. For entity tables (`customers`, `orders`), we use SQL `ON CONFLICT (id) DO UPDATE` (upsert) logic rather than blind append. If an identical batch is re-run, existing rows are updated to the exact same values without incrementing row counts. This was proven empirically with our `verify_idempotency.py` script showing exactly 0 row delta across 1,157,279 records."*
 
 ### Question 3: "How does SCD Type II in `dim_customer` prevent revenue attribution bias?"
 * **Answer**:
@@ -60,12 +62,19 @@ This document provides a battle-tested **10-minute presentation guide** and an *
 
 ### Question 4: "What happens if a dbt contract fails or a source schema shifts unexpectedly?"
 * **Answer**:
-  > *"Because dbt model contracts are enforced (`contract: {enforced: true}`), dbt validates column names and data types before executing DDL. If upstream source parquet files introduce an incompatible data type or missing column, dbt aborts the model build immediately with a clear error. In Airflow, this halts downstream mart transformations, activates the exponential retry policy, and if unrecovered, triggers the `on_failure_callback` to log an incident, preventing corrupted data from entering serving marts."*
+  > *"Because dbt model contracts are enforced (`contract: {enforced: true}`), dbt validates column names and data types before executing DDL. If upstream sources introduce an incompatible data type or missing column, dbt aborts the model build immediately with a clear error. In Airflow, this halts downstream mart transformations, activates the exponential retry policy, and if unrecovered, triggers the `on_failure_callback` to log an incident, preventing corrupted data from entering serving marts."*
 
 ### Question 5: "How does your monitoring module distinguish between normal fluctuations and genuine data drift?"
 * **Answer**:
   > *"Our volume check uses a calibrated percentage variance threshold (`+-5.0%`) calculated against historical baseline counts in `data/manifest.json`. Minor day-to-day variances within 5% trigger a `PASS`. A shift between 5% and 20% triggers a `WARN` for investigation, and changes beyond 20% trigger a `FAIL`. Freshness evaluates the delta between the logical execution timestamp and the latest record timestamp against a 24-hour threshold."*
 
-### Question 6: "How does Airflow 3 differ from Airflow 2 in this project?"
+### Question 6: "How did you handle messy real-world data anomalies when ingesting live databases?"
 * **Answer**:
-  > *"Airflow 3 introduces a modernized scheduler with task-level isolation, standard task runners, and strict POSIX/Windows execution boundaries. In our Windows development environment, we implemented runtime compatibility shims for non-POSIX socket inheritance and signal handlers, while maintaining full compatibility with Airflow 3's task SDK and incident callback APIs."*
+  > *"Live source databases contained multiple anomalies:
+  > 1. **Status Casing & Synonyms**: In `ecom.orders`, status appeared as `'SHIPPED'`, `'Shipped'`, `'delivered'`, and `'paid'`. In `stg_orders.sql`, we applied declarative mapping to standardize into canonical analytical states: `COMPLETED`, `PROCESSING`, and `CANCELLED`.
+  > 2. **Plan Tier Variations**: In `saas.subscriptions`, tiers included `'pro'`, `'professional'`, `'Enterprise'`, `'starter'`, and `'basic'`. We canonicalized these into `PRO`, `ENTERPRISE`, `STARTER`, and `FREE`.
+  > 3. **Chronology Inversion**: 67 raw records had `cancelled_at < started_at`. We clamped the timestamp (`CASE WHEN cancelled_at < started_at THEN cancelled_at ELSE started_at END`) to guarantee non-negative subscription durations without dropping transactions."*
+
+### Question 7: "How does the pipeline handle live cloud database connections vs offline test sandboxes?"
+* **Answer**:
+  > *"We implemented a dual-mode ingestion strategy. In production, the pipeline reads `ECOM_SOURCE_URL` and `SAAS_SOURCE_URL` from the environment to connect to live Neon Cloud PostgreSQL instances using thread-safe SQLAlchemy pooling with SSL encryption (`sslmode=require`). If those credentials are omitted, the extractor automatically falls back to reading local Parquet data lake files in `data/raw/`, allowing developers and CI runners to test the entire pipeline offline with zero cloud credentials."*

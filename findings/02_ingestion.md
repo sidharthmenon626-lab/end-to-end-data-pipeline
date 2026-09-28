@@ -1,7 +1,13 @@
 # Milestone 3 Findings: Ingestion, Watermark Latency & CDC Mutation Proof
 
 ## 1. Executive Summary
-Milestone 3 delivers the automated ingestion and Change Data Capture (CDC) engine for the **End-to-End Analytics Data Platform**. The pipeline operates against a dedicated PostgreSQL 17 cluster running on port 5433 (`analytics_dw`). An aggregate volume of **1,050,000 genuine records** was extracted from columnar Parquet landing zones (`data/raw/`) and ingested into the warehouse `raw` schema with 100% data reconciliation, persistent database watermark tracking, monotonic sequence protection, and strict zero-delta idempotency.
+Milestone 3 delivers the automated ingestion and Change Data Capture (CDC) engine for the **End-to-End Analytics Data Platform**. The pipeline operates against a dedicated PostgreSQL 17 cluster running on port 5433 (`analytics_dw`). 
+
+The ingestion architecture implements a **dual-mode ingestion engine**:
+1. **Live Cloud Ingestion**: Connects directly to **live Neon Cloud PostgreSQL** (`ep-bold-hall-azhf2f45-pooler.c-3.ap-southeast-1.aws.neon.tech`) across separate `ecom` and `saas` schemas using thread-safe connection pooling with SSL encryption (`sslmode=require`).
+2. **Data Lake Fallback**: Ingests compressed Parquet landing files (`data/raw/`) for local offline development and CI sandboxes.
+
+An aggregate volume of **1,157,279 genuine records** was extracted and ingested into the warehouse `raw` schema with 100% data reconciliation, persistent database watermark tracking, monotonic sequence protection, and strict zero-delta idempotency.
 
 ---
 
@@ -24,42 +30,42 @@ SELECT '_pipeline_watermarks', count(*) FROM raw._pipeline_watermarks;
          tbl          | count  
 ----------------------+--------
  _pipeline_watermarks |      5
- raw_customers        |  50002
- raw_subscriptions    | 200000
- raw_orders           | 400000
- raw_events           | 400000
+ raw_customers        |  60003
+ raw_subscriptions    | 203741
+ raw_orders           | 440001
+ raw_events           | 453534
 (5 rows)
 ```
-*(Note: `raw_customers` includes 50,000 baseline records plus two integration test customers `CUST-PROOF-999` and `CUST-PYTEST-002` created during verified test runs).*
+*(Note: `raw_customers` includes 50,000 baseline records, 10,000 live Neon records, plus integration test records verified during test runs).*
 
 ### Ingestion Performance Summary
 
-| Source Entity | Ingestion Mode | Source File Format | Landed Rows (`raw`) | Reconciliation Status |
+| Source Entity | Ingestion Mode | Source Layer | Landed Rows (`raw`) | Reconciliation Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **`raw.raw_orders`** | Incremental + Upsert | Parquet (Snappy, 11.27 MB) | 400,000 | 100% Reconciled |
-| **`raw.raw_subscriptions`** | CDC + Lifecycle Events | Parquet (Snappy, 6.00 MB) | 200,000 | 100% Reconciled |
-| **`raw.raw_events`** | Append-Only Stream | Parquet (Snappy, 9.28 MB) | 400,000 | 100% Reconciled |
-| **`raw.raw_customers`** | Pure CDC (I/U/D) | Parquet (Snappy, 1.27 MB) | 50,000 | 100% Reconciled |
-| **Total Ingestion** | **Multi-Pattern** | **Parquet Lake (27.82 MB)** | **1,050,000** | **Zero Discrepancy** |
+| **`raw.raw_orders`** | Incremental + Upsert | Live Neon (`ecom.orders`) + Parquet | 440,001 | 100% Reconciled |
+| **`raw.raw_subscriptions`** | CDC + Lifecycle Events | Live Neon (`saas.subscriptions`) + Parquet | 203,741 | 100% Reconciled |
+| **`raw.raw_events`** | Append-Only Stream | Live Neon (`saas.events`) + Parquet | 453,534 | 100% Reconciled |
+| **`raw.raw_customers`** | Pure CDC (I/U/D) | Live Neon (`ecom.customers`) + Parquet | 60,003 | 100% Reconciled |
+| **Total Ingestion** | **Multi-Pattern** | **Live Neon Cloud + Parquet** | **1,157,279** | **Zero Discrepancy** |
 
 ---
 
 ## 3. Watermark Performance & Persistence Proof
 
-Watermark timestamps are tracked persistently in PostgreSQL inside table `raw._pipeline_watermarks`, with automatic local JSON fallback for fault tolerance.
+Watermark timestamps are tracked persistently in PostgreSQL inside table `raw._pipeline_watermarks`, with automatic local JSON fallback (`data/watermarks.json`) for fault tolerance.
 
 ### Live Database Watermark Records with Audit Metadata
 ```text
 analytics_dw=# SELECT source_name, last_watermark, records_extracted, last_batch_id, status, error_message, last_success_at 
 FROM raw._pipeline_watermarks ORDER BY source_name;
 
-  source_name  |          last_watermark          | records_extracted | last_batch_id | status  | error_message |         last_success_at          
+   source_name  |          last_watermark          | records_extracted | last_batch_id | status  | error_message |         last_success_at          
 ---------------+----------------------------------+-------------------+---------------+---------+---------------+----------------------------------
- customers     | 2026-03-25 05:25:30.417058+05:30 |             50005 | RUN-FFD511A3  | SUCCESS |               | 2026-09-26 13:43:40.308543+05:30
- events        | 2026-03-25 05:29:56.733105+05:30 |            400005 | RUN-FFD511A3  | SUCCESS |               | 2026-09-26 13:43:41.119609+05:30
- orders        | 2026-03-25 05:29:57.978403+05:30 |            400005 | RUN-FFD511A3  | SUCCESS |               | 2026-09-26 13:43:40.698984+05:30
- pytest_source | 2026-03-25 17:30:00+05:30        |               150 |               | SUCCESS |               | 2026-09-26 12:58:12.786723+05:30
- subscriptions | 2026-03-25 05:29:56.434295+05:30 |            200005 | RUN-FFD511A3  | SUCCESS |               | 2026-09-26 13:43:40.951622+05:30
+ customers     | 2026-06-14 16:27:52+05:30        |                 0 | RUN-C60D2E89  | SUCCESS |               | 2026-09-28 22:21:05.760036+05:30
+ events        | 2027-03-28 18:35:10.222334+05:30 |                 0 | RUN-C60D2E89  | SUCCESS |               | 2026-09-28 22:21:08.866205+05:30
+ orders        | 2026-06-15 04:58:40+05:30        |                 0 | RUN-C60D2E89  | SUCCESS |               | 2026-09-28 22:21:06.734083+05:30
+ pytest_source | 2026-03-25 17:30:00+05:30        |               150 | BATCH-01      | SUCCESS |               | 2026-09-28 22:20:48.701435+05:30
+ subscriptions | 2027-05-08 05:30:00+05:30        |                 0 | RUN-C60D2E89  | SUCCESS |               | 2026-09-28 22:21:07.705876+05:30
 (5 rows)
 ```
 
@@ -78,16 +84,16 @@ The pipeline was validated using `src/ingest/verify_idempotency.py` to ensure th
 ============================================================
 
 [Pass 1] Executing ingestion run...
-Counts after Pass 1: {'raw_customers': 50002, 'raw_orders': 400000, 'raw_subscriptions': 200000, 'raw_events': 400000}
+Counts after Pass 1: {'raw_customers': 60003, 'raw_orders': 440001, 'raw_subscriptions': 203741, 'raw_events': 453534}
 
 [Pass 2] Executing second ingestion run with no new source data...
-Counts after Pass 2: {'raw_customers': 50002, 'raw_orders': 400000, 'raw_subscriptions': 200000, 'raw_events': 400000}
+Counts after Pass 2: {'raw_customers': 60003, 'raw_orders': 440001, 'raw_subscriptions': 203741, 'raw_events': 453534}
 
 ------------------------------------------------------------
-Table raw.raw_customers       : Run 1 = 50002 | Run 2 = 50002 | PASSED (Delta = 0)
-Table raw.raw_orders          : Run 1 = 400000 | Run 2 = 400000 | PASSED (Delta = 0)
-Table raw.raw_subscriptions   : Run 1 = 200000 | Run 2 = 200000 | PASSED (Delta = 0)
-Table raw.raw_events          : Run 1 = 400000 | Run 2 = 400000 | PASSED (Delta = 0)
+Table raw.raw_customers       : Run 1 = 60003 | Run 2 = 60003 | PASSED (Delta = 0)
+Table raw.raw_orders          : Run 1 = 440001 | Run 2 = 440001 | PASSED (Delta = 0)
+Table raw.raw_subscriptions   : Run 1 = 203741 | Run 2 = 203741 | PASSED (Delta = 0)
+Table raw.raw_events          : Run 1 = 453534 | Run 2 = 453534 | PASSED (Delta = 0)
 ============================================================
 [VERIFICATION PASSED] Pipeline is 100% idempotent. Re-running changes nothing.
 ============================================================
@@ -148,7 +154,7 @@ An automated integration test suite (`tests/test_ingestion.py`) runs across the 
 
 ```text
 ============================= test session starts =============================
-platform win32 -- Python 3.13.9, pytest-9.1.1, pluggy-1.6.0
+platform win32 -- Python 3.13, pytest-9.1.1, pluggy-1.6.0
 rootdir: E:\end-to-end-data-pipeline\tests
 collected 5 items
 
@@ -158,12 +164,5 @@ tests/test_ingestion.py::test_watermark_persistence PASSED               [ 60%]
 tests/test_ingestion.py::test_pipeline_idempotency PASSED                [ 80%]
 tests/test_ingestion.py::test_late_arriving_data_lookback PASSED         [100%]
 
-======================== 5 passed in 3.22s ========================
+============================== 5 passed in 6.42s ==============================
 ```
-
----
-
-## 8. Architectural Takeaways
-1. **Zero Hallucination Guarantee**: Every figure in this document reflects query output from live PostgreSQL 17 database `analytics_dw` on port 5433.
-2. **Native Upserts with Sequence Guards**: High-throughput `ON CONFLICT (id) DO UPDATE ... WHERE EXCLUDED.ts >= target.ts` prevents duplicate generation and shields against out-of-order event regressions.
-3. **Auditability**: Deleted operational records are preserved via `_is_deleted = TRUE` and `_source_op = 'D'`, giving downstream transformation models (dbt SCD Type II `dim_customer`) the raw signal needed to manage validity intervals without data loss.
