@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-28T16:38:10.509299+00:00",
+  "timestamp": "2026-09-28T16:51:41.825933+00:00",
   "overall_status": "PASS",
   "total_checks": 13,
   "passed_checks": 13,
@@ -13,7 +13,7 @@
       "actual_value": "0.0 hours",
       "threshold": "Pass: <= 24h | Warn: <= 48h | Fail: > 48h",
       "status": "PASS",
-      "explanation": "Latest event ts: 2027-03-28 13:05:10.222334+05:30 | Latest order date: 2026-09-26"
+      "explanation": "Latest event ts: 2027-03-28 13:05:10.222334+05:30 | Latest order date: 2026-09-28"
     },
     {
       "pillar": "Volume",
@@ -106,10 +106,10 @@
     {
       "pillar": "Runtime",
       "metric": "Pipeline Execution SLA",
-      "actual_value": "0.76s",
+      "actual_value": "0.69s",
       "threshold": "Pass: < 10m | Warn: 10-20m | Fail: > 20m",
       "status": "PASS",
-      "explanation": "Total check duration: 0.76 seconds (SLA target < 10m)"
+      "explanation": "Total check duration: 0.69 seconds (SLA target < 10m)"
     }
   ]
 }
