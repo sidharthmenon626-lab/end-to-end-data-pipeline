@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-26T11:07:58.816574+00:00",
+  "timestamp": "2026-09-28T16:38:10.509299+00:00",
   "overall_status": "PASS",
   "total_checks": 13,
   "passed_checks": 13,
@@ -13,63 +13,63 @@
       "actual_value": "0.0 hours",
       "threshold": "Pass: <= 24h | Warn: <= 48h | Fail: > 48h",
       "status": "PASS",
-      "explanation": "Latest event ts: 2026-03-25 05:29:56.733105+05:30 | Latest order date: 2026-09-26"
+      "explanation": "Latest event ts: 2027-03-28 13:05:10.222334+05:30 | Latest order date: 2026-09-26"
     },
     {
       "pillar": "Volume",
       "metric": "Volume Stability (raw.raw_customers)",
-      "actual_value": "50,003 rows",
+      "actual_value": "60,003 rows",
       "threshold": "Pass: Within +/-10% | Warn: +/-25% | Fail: > +/-25%",
       "status": "PASS",
-      "explanation": "Actual: 50,003 vs Baseline: 50,000 (variance: +0.01%)"
+      "explanation": "Actual: 60,003 vs Baseline: 60,003 (variance: +0.00%)"
     },
     {
       "pillar": "Volume",
       "metric": "Volume Stability (raw.raw_orders)",
-      "actual_value": "400,001 rows",
+      "actual_value": "440,001 rows",
       "threshold": "Pass: Within +/-10% | Warn: +/-25% | Fail: > +/-25%",
       "status": "PASS",
-      "explanation": "Actual: 400,001 vs Baseline: 400,000 (variance: +0.00%)"
+      "explanation": "Actual: 440,001 vs Baseline: 440,001 (variance: +0.00%)"
     },
     {
       "pillar": "Volume",
       "metric": "Volume Stability (raw.raw_subscriptions)",
-      "actual_value": "200,000 rows",
+      "actual_value": "203,741 rows",
       "threshold": "Pass: Within +/-10% | Warn: +/-25% | Fail: > +/-25%",
       "status": "PASS",
-      "explanation": "Actual: 200,000 vs Baseline: 200,000 (variance: +0.00%)"
+      "explanation": "Actual: 203,741 vs Baseline: 203,741 (variance: +0.00%)"
     },
     {
       "pillar": "Volume",
       "metric": "Volume Stability (raw.raw_events)",
-      "actual_value": "400,000 rows",
+      "actual_value": "453,534 rows",
       "threshold": "Pass: Within +/-10% | Warn: +/-25% | Fail: > +/-25%",
       "status": "PASS",
-      "explanation": "Actual: 400,000 vs Baseline: 400,000 (variance: +0.00%)"
+      "explanation": "Actual: 453,534 vs Baseline: 453,534 (variance: +0.00%)"
     },
     {
       "pillar": "Volume",
       "metric": "Volume Stability (marts.dim_customer)",
-      "actual_value": "50,003 rows",
+      "actual_value": "60,003 rows",
       "threshold": "Pass: Within +/-10% | Warn: +/-25% | Fail: > +/-25%",
       "status": "PASS",
-      "explanation": "Actual: 50,003 vs Baseline: 50,000 (variance: +0.01%)"
+      "explanation": "Actual: 60,003 vs Baseline: 60,003 (variance: +0.00%)"
     },
     {
       "pillar": "Volume",
       "metric": "Volume Stability (marts.fact_orders)",
-      "actual_value": "400,001 rows",
+      "actual_value": "440,001 rows",
       "threshold": "Pass: Within +/-10% | Warn: +/-25% | Fail: > +/-25%",
       "status": "PASS",
-      "explanation": "Actual: 400,001 vs Baseline: 400,000 (variance: +0.00%)"
+      "explanation": "Actual: 440,001 vs Baseline: 440,001 (variance: +0.00%)"
     },
     {
       "pillar": "Volume",
       "metric": "Volume Stability (marts.fact_subscription_events)",
-      "actual_value": "200,000 rows",
+      "actual_value": "203,741 rows",
       "threshold": "Pass: Within +/-10% | Warn: +/-25% | Fail: > +/-25%",
       "status": "PASS",
-      "explanation": "Actual: 200,000 vs Baseline: 200,000 (variance: +0.00%)"
+      "explanation": "Actual: 203,741 vs Baseline: 203,741 (variance: +0.00%)"
     },
     {
       "pillar": "Correctness",
@@ -106,10 +106,10 @@
     {
       "pillar": "Runtime",
       "metric": "Pipeline Execution SLA",
-      "actual_value": "1.24s",
+      "actual_value": "0.76s",
       "threshold": "Pass: < 10m | Warn: 10-20m | Fail: > 20m",
       "status": "PASS",
-      "explanation": "Total check duration: 1.24 seconds (SLA target < 10m)"
+      "explanation": "Total check duration: 0.76 seconds (SLA target < 10m)"
     }
   ]
 }

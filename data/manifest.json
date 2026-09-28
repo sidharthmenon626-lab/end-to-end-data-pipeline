@@ -2,7 +2,7 @@
   "project": "end-to-end-data-pipeline",
   "generated_at": "2026-09-26T11:00:00Z",
   "pipeline_version": "1.0.0",
-  "total_target_rows": 1000000,
+  "total_target_rows": 1157279,
   "sources": [
     {
       "source_name": "ecommerce_orders",
@@ -15,15 +15,51 @@
       "primary_key": "order_id",
       "timestamp_column": "order_timestamp",
       "columns": [
-        {"name": "order_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "customer_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "order_status", "type": "VARCHAR(32)", "nullable": false},
-        {"name": "order_timestamp", "type": "TIMESTAMP", "nullable": false},
-        {"name": "order_amount_usd", "type": "DECIMAL(12, 2)", "nullable": false},
-        {"name": "discount_usd", "type": "DECIMAL(12, 2)", "nullable": true},
-        {"name": "payment_method", "type": "VARCHAR(32)", "nullable": true},
-        {"name": "shipping_country", "type": "VARCHAR(8)", "nullable": true},
-        {"name": "updated_at", "type": "TIMESTAMP", "nullable": false}
+        {
+          "name": "order_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "customer_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "order_status",
+          "type": "VARCHAR(32)",
+          "nullable": false
+        },
+        {
+          "name": "order_timestamp",
+          "type": "TIMESTAMP",
+          "nullable": false
+        },
+        {
+          "name": "order_amount_usd",
+          "type": "DECIMAL(12, 2)",
+          "nullable": false
+        },
+        {
+          "name": "discount_usd",
+          "type": "DECIMAL(12, 2)",
+          "nullable": true
+        },
+        {
+          "name": "payment_method",
+          "type": "VARCHAR(32)",
+          "nullable": true
+        },
+        {
+          "name": "shipping_country",
+          "type": "VARCHAR(8)",
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP",
+          "nullable": false
+        }
       ]
     },
     {
@@ -37,16 +73,56 @@
       "primary_key": "subscription_event_id",
       "timestamp_column": "event_timestamp",
       "columns": [
-        {"name": "subscription_event_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "subscription_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "customer_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "plan_tier", "type": "VARCHAR(32)", "nullable": false},
-        {"name": "monthly_recurring_revenue", "type": "DECIMAL(10, 2)", "nullable": false},
-        {"name": "status", "type": "VARCHAR(32)", "nullable": false},
-        {"name": "billing_frequency", "type": "VARCHAR(16)", "nullable": false},
-        {"name": "started_at", "type": "TIMESTAMP", "nullable": false},
-        {"name": "cancelled_at", "type": "TIMESTAMP", "nullable": true},
-        {"name": "event_timestamp", "type": "TIMESTAMP", "nullable": false}
+        {
+          "name": "subscription_event_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "subscription_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "customer_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "plan_tier",
+          "type": "VARCHAR(32)",
+          "nullable": false
+        },
+        {
+          "name": "monthly_recurring_revenue",
+          "type": "DECIMAL(10, 2)",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(32)",
+          "nullable": false
+        },
+        {
+          "name": "billing_frequency",
+          "type": "VARCHAR(16)",
+          "nullable": false
+        },
+        {
+          "name": "started_at",
+          "type": "TIMESTAMP",
+          "nullable": false
+        },
+        {
+          "name": "cancelled_at",
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        {
+          "name": "event_timestamp",
+          "type": "TIMESTAMP",
+          "nullable": false
+        }
       ]
     },
     {
@@ -60,15 +136,61 @@
       "primary_key": "event_id",
       "timestamp_column": "event_timestamp",
       "columns": [
-        {"name": "event_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "customer_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "session_id", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "event_name", "type": "VARCHAR(64)", "nullable": false},
-        {"name": "device_category", "type": "VARCHAR(32)", "nullable": true},
-        {"name": "operating_system", "type": "VARCHAR(32)", "nullable": true},
-        {"name": "page_path", "type": "VARCHAR(255)", "nullable": true},
-        {"name": "event_timestamp", "type": "TIMESTAMP", "nullable": false}
+        {
+          "name": "event_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "customer_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "session_id",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "event_name",
+          "type": "VARCHAR(64)",
+          "nullable": false
+        },
+        {
+          "name": "device_category",
+          "type": "VARCHAR(32)",
+          "nullable": true
+        },
+        {
+          "name": "operating_system",
+          "type": "VARCHAR(32)",
+          "nullable": true
+        },
+        {
+          "name": "page_path",
+          "type": "VARCHAR(255)",
+          "nullable": true
+        },
+        {
+          "name": "event_timestamp",
+          "type": "TIMESTAMP",
+          "nullable": false
+        }
       ]
     }
-  ]
+  ],
+  "tables": {
+    "customers": {
+      "target_rows": 60003
+    },
+    "orders": {
+      "target_rows": 440001
+    },
+    "subscriptions": {
+      "target_rows": 203741
+    },
+    "events": {
+      "target_rows": 453534
+    }
+  }
 }
