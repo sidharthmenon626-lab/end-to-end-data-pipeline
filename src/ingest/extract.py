@@ -52,7 +52,7 @@ def get_landing_file(source_name: str) -> str:
 
 SOURCE_QUERIES = {
     "customers": """
-        SELECT 
+        SELECT
             c.customer_id::text AS customer_id,
             c.first_name,
             c.last_name,
@@ -70,7 +70,7 @@ SOURCE_QUERIES = {
         LIMIT :limit OFFSET :offset;
     """,
     "orders": """
-        SELECT 
+        SELECT
             o.order_id::text AS order_id,
             o.customer_id::text AS customer_id,
             o.status AS order_status,
@@ -90,7 +90,7 @@ SOURCE_QUERIES = {
         LIMIT :limit OFFSET :offset;
     """,
     "subscriptions": """
-        SELECT 
+        SELECT
             se.event_id::text AS subscription_event_id,
             se.subscription_id::text AS subscription_id,
             se.user_id::text AS customer_id,
@@ -109,7 +109,7 @@ SOURCE_QUERIES = {
         LIMIT :limit OFFSET :offset;
     """,
     "events": """
-        SELECT 
+        SELECT
             e.event_id::text AS event_id,
             COALESCE(e.user_id::text, 'anonymous') AS customer_id,
             ('sess_' || COALESCE(e.user_id::text, 'anon') || '_' || e.event_id) AS session_id,
@@ -122,13 +122,11 @@ SOURCE_QUERIES = {
         WHERE e.occurred_at > :wm
         ORDER BY e.occurred_at ASC
         LIMIT :limit OFFSET :offset;
-    """
+    """,
 }
 
 
-def _extract_from_db(
-    source_name: str, effective_watermark: datetime, batch_size: int
-) -> Iterator[ExtractionBatch]:
+def _extract_from_db(source_name: str, effective_watermark: datetime, batch_size: int) -> Iterator[ExtractionBatch]:
     """
     Extracts batches directly from live PostgreSQL database sources.
     """
@@ -141,7 +139,9 @@ def _extract_from_db(
     query_str = SOURCE_QUERIES[source_name]
     offset = 0
 
-    logger.info(f"[{source_name}] Extracting live from remote {db_key.upper()} PostgreSQL (watermark > {effective_watermark.isoformat()})...")
+    logger.info(
+        f"[{source_name}] Extracting live from remote {db_key.upper()} PostgreSQL (watermark > {effective_watermark.isoformat()})..."
+    )
 
     with engine.connect() as conn:
         while True:

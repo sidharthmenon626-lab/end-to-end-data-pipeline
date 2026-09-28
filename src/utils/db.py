@@ -42,7 +42,7 @@ def get_source_url(source_name: str, mask_password: bool = False) -> str | None:
         return None
     if not mask_password:
         return raw_url
-    
+
     parts = urlsplit(raw_url)
     if parts.password:
         netloc = parts.netloc.replace(f":{parts.password}@", ":********@")
