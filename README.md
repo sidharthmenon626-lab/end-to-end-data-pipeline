@@ -88,10 +88,10 @@ The serving layer (`marts`) implements a Kimball Star Schema optimized for high-
 
 | Model Name | Type | Grain | Total Records | Key Strategy | Performance Optimization |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`dim_date`** | Dimension | 1 Calendar Day (2025-01-01 to 2026-12-31) | 731 | Integer Key (`YYYYMMDD`) | Static lookup spine; B-tree index on `date_day` |
-| **`dim_customer`** | Dimension (SCD II) | 1 Customer Version (`customer_id` + `valid_from`) | 60,003 | MD5 Surrogate Key (`customer_sk`) | Historical state tracking; `is_current` index |
-| **`fact_orders`** | Fact | 1 Order Transaction (`order_id`) | 440,001 | Natural Key (`order_id`) | Range-partitioned by month (`order_date_day`) |
-| **`fact_subscription_events`** | Fact | 1 Subscription Lifecycle Mutation (`subscription_event_id`) | 203,741 | Natural Key (`subscription_event_id`) | Range-partitioned by month (`event_date_day`) |
+| [**`dim_date`**](dbt/models/marts/dim_date.sql) | Dimension | 1 Calendar Day (2025-01-01 to 2026-12-31) | 731 | Integer Key (`YYYYMMDD`) | Static lookup spine; B-tree index on `date_day` |
+| [**`dim_customer`**](dbt/models/marts/dim_customer.sql) | Dimension (SCD II) | 1 Customer Version (`customer_id` + `valid_from`) | 60,003 | MD5 Surrogate Key (`customer_sk`) | Historical state tracking; `is_current` index |
+| [**`fact_orders`**](dbt/models/marts/fact_orders.sql) | Fact | 1 Order Transaction (`order_id`) | 440,001 | Natural Key (`order_id`) | Range-partitioned by month (`order_date_day`) |
+| [**`fact_subscription_events`**](dbt/models/marts/fact_subscription_events.sql) | Fact | 1 Subscription Lifecycle Mutation (`subscription_event_id`) | 203,741 | Natural Key (`subscription_event_id`) | Range-partitioned by month (`event_date_day`) |
 
 ### Enforced Data Contracts
 All dbt models are governed by explicit schema contracts (`contract: {enforced: true}`), guaranteeing that column names, data types, and nullability constraints match production warehouse DDL specifications. 
@@ -109,9 +109,9 @@ All dbt models are governed by explicit schema contracts (`contract: {enforced: 
 
 During live cloud ingestion, source data contained real-world operational anomalies that were systematically neutralized in the staging transformation layer:
 
-* **Order Status Canonicalization (`stg_orders.sql`)**: Raw operational values with mixed casing and status synonyms (`'SHIPPED'`, `'Shipped'`, `'delivered'`, `'DELIVERED'`, `'packed'`, `'paid'`, `'cancelled'`) are mapped into canonical analytical states (`'COMPLETED'`, `'PROCESSING'`, `'CANCELLED'`).
-* **Subscription Tier Normalization (`stg_subscriptions.sql` & `stg_customers.sql`)**: Synonym variations (`'pro'`, `'professional'`, `'Enterprise'`, `'starter'`, `'basic'`, `'free'`) are canonicalized into standard uppercase business tiers (`PRO`, `ENTERPRISE`, `STARTER`, `FREE`).
-* **Chronological Inversion Guard (`stg_subscriptions.sql`)**: 67 raw records where historical cancellations were logged before subscription starts (`cancelled_at < started_at`) are clamped to ensure non-negative subscription durations without dropping records.
+* **Order Status Canonicalization ([`stg_orders.sql`](dbt/models/staging/stg_orders.sql))**: Raw operational values with mixed casing and status synonyms (`'SHIPPED'`, `'Shipped'`, `'delivered'`, `'DELIVERED'`, `'packed'`, `'paid'`, `'cancelled'`) are mapped into canonical analytical states (`'COMPLETED'`, `'PROCESSING'`, `'CANCELLED'`).
+* **Subscription Tier Normalization ([`stg_subscriptions.sql`](dbt/models/staging/stg_subscriptions.sql) & [`stg_customers.sql`](dbt/models/staging/stg_customers.sql))**: Synonym variations (`'pro'`, `'professional'`, `'Enterprise'`, `'starter'`, `'basic'`, `'free'`) are canonicalized into standard uppercase business tiers (`PRO`, `ENTERPRISE`, `STARTER`, `FREE`).
+* **Chronological Inversion Guard ([`stg_subscriptions.sql`](dbt/models/staging/stg_subscriptions.sql))**: 67 raw records where historical cancellations were logged before subscription starts (`cancelled_at < started_at`) are clamped to ensure non-negative subscription durations without dropping records.
 * **Variable-Width Schema Hardening**: Widened warehouse staging types (`VARCHAR(64)` for international shipping countries) preventing truncation errors during live cloud loads.
 
 ---
